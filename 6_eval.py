@@ -21,14 +21,16 @@ if __name__ == '__main__':
     logo = LeaveOneGroupOut()
 
     mdls = {
-        'TS-SVM': (Pipeline([('sc', StandardScaler()), ('svm', LinearSVC(class_weight='balanced', dual='auto', random_state=42))]), xt, 'decision_function'),
-        'TS-LR': (Pipeline([('sc', StandardScaler()), ('lr', LogisticRegression(class_weight='balanced', max_iter=1000))]), xt, 'decision_function'),
+        'TS-SVM': (Pipeline([('sc', StandardScaler()), ('svm', LinearSVC(C=0.01, class_weight='balanced', dual='auto', random_state=42))]), xt, 'decision_function'),
+        'TS-LR': (Pipeline([('sc', StandardScaler()), ('lr', LogisticRegression(C=0.01, class_weight='balanced', max_iter=1000))]), xt, 'decision_function'),
         'MDM': (MDM(metric=dict(mean='riemann', distance='riemann')), xc, 'predict_proba'),
-        'RF': (RandomForestClassifier(n_estimators=100, class_weight='balanced', random_state=42), xp, 'predict_proba'),
-        'Euc-LR': (Pipeline([('sc', StandardScaler()), ('lr', LogisticRegression(class_weight='balanced', max_iter=1000))]), xp, 'decision_function')
+        'RF': (RandomForestClassifier(n_estimators=200, max_depth=8, class_weight='balanced', random_state=42), xp, 'predict_proba'),
+        'Euc-LR': (Pipeline([('sc', StandardScaler()), ('lr', LogisticRegression(C=0.01, class_weight='balanced', max_iter=1000))]), xp, 'decision_function')
     }
 
-    res = []
+    ep_res = []
+    sb_res = []
+
     for nm, (m, x, mth) in mdls.items():
         sc = cross_val_predict(m, x, yl, groups=gl, cv=logo, method=mth, n_jobs=-1)
         if mth == 'predict_proba':
@@ -37,18 +39,39 @@ if __name__ == '__main__':
         else:
             pr = (sc >= 0.0).astype(int)
 
-        res.append({
+        ep_res.append({
             'Model': nm,
             'Accuracy': accuracy_score(yl, pr),
             'ROC-AUC': roc_auc_score(yl, sc),
-            'Precision': precision_score(yl, pr),
-            'Recall': recall_score(yl, pr),
-            'F1-Score': f1_score(yl, pr)
+            'Precision': precision_score(yl, pr, zero_division=0),
+            'Recall': recall_score(yl, pr, zero_division=0),
+            'F1-Score': f1_score(yl, pr, zero_division=0)
         })
 
-    df_res = pd.DataFrame(res)
-    print(df_res.to_string(index=False))
-    df_res.to_csv('loso_metrics.csv', index=False)
+        df_s = pd.DataFrame({'g': gl, 'y': yl, 'sc': sc, 'pr': pr}).groupby('g').mean()
+        ys = df_s['y'].astype(int).values
+        scs = df_s['sc'].values
+        prs = (df_s['pr'].values >= 0.5).astype(int)
+
+        sb_res.append({
+            'Model': nm,
+            'Accuracy': accuracy_score(ys, prs),
+            'ROC-AUC': roc_auc_score(ys, scs),
+            'Precision': precision_score(ys, prs, zero_division=0),
+            'Recall': recall_score(ys, prs, zero_division=0),
+            'F1-Score': f1_score(ys, prs, zero_division=0)
+        })
+
+    df_ep = pd.DataFrame(ep_res)
+    df_sb = pd.DataFrame(sb_res)
+
+    print("\n--- EPOCH-LEVEL LOSO METRICS (4s Windows) ---")
+    print(df_ep.to_string(index=False))
+    df_ep.to_csv('loso_epoch_metrics.csv', index=False)
+
+    print("\n--- SUBJECT-LEVEL LOSO METRICS (Patient Diagnosis) ---")
+    print(df_sb.to_string(index=False))
+    df_sb.to_csv('loso_subject_metrics.csv', index=False)
 
     rng = np.random.default_rng(42)
     idx = rng.choice(len(yl), size=min(2500, len(yl)), replace=False)
@@ -67,7 +90,7 @@ if __name__ == '__main__':
         ax[0].scatter(tsne_euc[msk, 0], tsne_euc[msk, 1], c=clr, label=nm, alpha=0.6, s=15, edgecolors='none')
         ax[1].scatter(tsne_rie[msk, 0], tsne_rie[msk, 1], c=clr, label=nm, alpha=0.6, s=15, edgecolors='none')
 
-    ax[0].set_title('Euclidean Feature Space (Welch PSD)')
+    ax[0].set_title('Euclidean Feature Space (Relative Log-PSD)')
     ax[0].set_xlabel('t-SNE Dimension 1')
     ax[0].set_ylabel('t-SNE Dimension 2')
     ax[0].legend()

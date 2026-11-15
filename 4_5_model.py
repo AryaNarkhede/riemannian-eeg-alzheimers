@@ -21,22 +21,22 @@ tr, te = next(gss.split(xc, yl, gl))
 ts_svm = Pipeline([
     ('ts', TangentSpace(metric='riemann')),
     ('sc', StandardScaler()),
-    ('svm', SVC(kernel='linear', class_weight='balanced'))
+    ('svm', SVC(kernel='linear', C=0.01, class_weight='balanced'))
 ])
 
 ts_lr = Pipeline([
     ('ts', TangentSpace(metric='riemann')),
     ('sc', StandardScaler()),
-    ('lr', LogisticRegression(class_weight='balanced', max_iter=1000))
+    ('lr', LogisticRegression(C=0.01, class_weight='balanced', max_iter=1000))
 ])
 
 mdm = MDM(metric=dict(mean='riemann', distance='riemann'))
 
-rf = RandomForestClassifier(n_estimators=100, class_weight='balanced', random_state=42, n_jobs=-1)
+rf = RandomForestClassifier(n_estimators=200, max_depth=8, class_weight='balanced', random_state=42, n_jobs=-1)
 
 euc_lr = Pipeline([
     ('sc', StandardScaler()),
-    ('lr', LogisticRegression(class_weight='balanced', max_iter=1000))
+    ('lr', LogisticRegression(C=0.01, class_weight='balanced', max_iter=1000))
 ])
 
 ts_svm.fit(xc[tr], yl[tr])
@@ -51,7 +51,7 @@ print("MDM:", accuracy_score(yl[te], mdm.predict(xc[te])), roc_auc_score(yl[te],
 print("RF:", accuracy_score(yl[te], rf.predict(xp[te])), roc_auc_score(yl[te], rf.predict_proba(xp[te])[:, 1]))
 print("Euc-LR:", accuracy_score(yl[te], euc_lr.predict(xp[te])), roc_auc_score(yl[te], euc_lr.decision_function(xp[te])))
 
-xt = ts_svm.named_steps['ts'].transform(xc)
+xt = TangentSpace(metric='riemann').fit_transform(xc)
 np.save('X_ts.npy', xt)
 
 joblib.dump({
