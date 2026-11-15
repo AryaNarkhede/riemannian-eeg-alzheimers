@@ -1,0 +1,25 @@
+# Raw EEG dataset
+data/
+
+# Generated NumPy arrays and pickled models (too large for Git)
+*.npy
+*.npz
+*.pkl
+*.joblib
+
+# Python cache and virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+
+# Editor and OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+Thumbs.db
+.DS_Store
