@@ -21,8 +21,8 @@ if __name__ == '__main__':
     logo = LeaveOneGroupOut()
 
     mdls = {
-        'TS-SVM': (Pipeline([('sc', StandardScaler()), ('svm', LinearSVC(C=0.01, class_weight='balanced', dual='auto', random_state=42))]), xt, 'decision_function'),
-        'TS-LR': (Pipeline([('sc', StandardScaler()), ('lr', LogisticRegression(C=0.01, class_weight='balanced', max_iter=1000))]), xt, 'decision_function'),
+        'TS-SVM': (Pipeline([('sc', StandardScaler()), ('svm', LinearSVC(C=0.005, class_weight='balanced', dual='auto', random_state=42))]), xt, 'decision_function'),
+        'TS-LR': (Pipeline([('sc', StandardScaler()), ('lr', LogisticRegression(C=0.005, class_weight='balanced', max_iter=1000))]), xt, 'decision_function'),
         'MDM': (MDM(metric=dict(mean='riemann', distance='riemann')), xc, 'predict_proba'),
         'RF': (RandomForestClassifier(n_estimators=200, max_depth=8, class_weight='balanced', random_state=42), xp, 'predict_proba'),
         'Euc-LR': (Pipeline([('sc', StandardScaler()), ('lr', LogisticRegression(C=0.01, class_weight='balanced', max_iter=1000))]), xp, 'decision_function')
@@ -36,8 +36,10 @@ if __name__ == '__main__':
         if mth == 'predict_proba':
             sc = sc[:, 1]
             pr = (sc >= 0.5).astype(int)
+            thr = 0.5
         else:
             pr = (sc >= 0.0).astype(int)
+            thr = 0.0
 
         ep_res.append({
             'Model': nm,
@@ -48,10 +50,10 @@ if __name__ == '__main__':
             'F1-Score': f1_score(yl, pr, zero_division=0)
         })
 
-        df_s = pd.DataFrame({'g': gl, 'y': yl, 'sc': sc, 'pr': pr}).groupby('g').mean()
+        df_s = pd.DataFrame({'g': gl, 'y': yl, 'sc': sc}).groupby('g').mean()
         ys = df_s['y'].astype(int).values
         scs = df_s['sc'].values
-        prs = (df_s['pr'].values >= 0.5).astype(int)
+        prs = (scs >= thr).astype(int)
 
         sb_res.append({
             'Model': nm,
@@ -95,7 +97,7 @@ if __name__ == '__main__':
     ax[0].set_ylabel('t-SNE Dimension 2')
     ax[0].legend()
 
-    ax[1].set_title('Riemannian Tangent Space (SPD Manifold)')
+    ax[1].set_title('Filter-Bank Riemannian Tangent Space (SPD Manifold)')
     ax[1].set_xlabel('t-SNE Dimension 1')
     ax[1].set_ylabel('t-SNE Dimension 2')
     ax[1].legend()
